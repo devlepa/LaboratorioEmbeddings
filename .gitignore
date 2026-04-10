@@ -1,0 +1,16 @@
+__pycache__/
+.ipynb_checkpoints/
+.python-version
+.venv/
+artifacts/
+data/
+mlruns/
+resources/cache/
+resources/tmp/
+*.egg-info/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+.env
+

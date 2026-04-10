@@ -1,0 +1,117 @@
+dataset:
+  handle: luisdiegofv97/imdb-dataset-of-50k-movie-reviews-spanish
+  file_path: ""
+  text_column_candidates:
+    - review_es
+    - review
+    - text
+    - comentario
+  label_column_candidates:
+    - sentiment
+    - label
+    - sentimiento
+
+splits:
+  train_size: 0.8
+  validation_size: 0.1
+  test_size: 0.1
+  random_state: 42
+
+baseline:
+  max_features: 50000
+  ngram_range: [1, 2]
+  min_df: 2
+  C: 4.0
+  max_iter: 2000
+
+neural:
+  max_tokens: 30000
+  sequence_length: 300
+  embedding_dim: 128
+  hidden_units: [128, 64]
+  dropout_rate: 0.30
+  learning_rate: 0.001
+  batch_size: 64
+  epochs: 12
+  patience: 3
+  threshold: 0.5
+
+tracking:
+  experiment_name: imdb-spanish-sentiment
+  artifact_location: artifacts
+  metric_for_best_model: test_f1
+  registered_model_name: imdb-spanish-sentiment
+
+experiments:
+  - name: baseline_tfidf_logreg
+    type: baseline
+    description: Baseline clásico con TF-IDF y regresión logística.
+
+  - name: dense_trainable_embeddings
+    type: neural
+    description: Red densa con embeddings entrenables y TextVectorization.
+    embedding:
+      kind: trainable
+      trainable: true
+
+  - name: spacy_md_frozen
+    type: neural
+    description: spaCy es_core_news_md con pesos congelados.
+    embedding:
+      kind: pretrained
+      provider: spacy
+      identifier: es_core_news_md
+      source_name: spaCy es_core_news_md
+      trainable: false
+
+  - name: spacy_md_finetuned
+    type: neural
+    description: spaCy es_core_news_md ajustado durante el entrenamiento.
+    embedding:
+      kind: pretrained
+      provider: spacy
+      identifier: es_core_news_md
+      source_name: spaCy es_core_news_md
+      trainable: true
+
+  - name: spacy_lg_frozen
+    type: neural
+    description: spaCy es_core_news_lg con pesos congelados.
+    embedding:
+      kind: pretrained
+      provider: spacy
+      identifier: es_core_news_lg
+      source_name: spaCy es_core_news_lg
+      trainable: false
+
+  - name: spacy_lg_finetuned
+    type: neural
+    description: spaCy es_core_news_lg ajustado durante el entrenamiento.
+    embedding:
+      kind: pretrained
+      provider: spacy
+      identifier: es_core_news_lg
+      source_name: spaCy es_core_news_lg
+      trainable: true
+
+  - name: conceptnet_frozen
+    type: neural
+    description: ConceptNet Numberbatch en español con pesos congelados.
+    embedding:
+      kind: pretrained
+      provider: gensim
+      identifier: conceptnet-numberbatch-17-06-300
+      source_name: Gensim ConceptNet Numberbatch 17.06
+      trainable: false
+      lookup_style: conceptnet_es
+
+  - name: conceptnet_finetuned
+    type: neural
+    description: ConceptNet Numberbatch en español ajustado durante el entrenamiento.
+    embedding:
+      kind: pretrained
+      provider: gensim
+      identifier: conceptnet-numberbatch-17-06-300
+      source_name: Gensim ConceptNet Numberbatch 17.06
+      trainable: true
+      lookup_style: conceptnet_es
