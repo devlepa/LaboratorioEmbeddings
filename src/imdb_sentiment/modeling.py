@@ -21,6 +21,20 @@ class NeuralArtifacts:
     embedding_info: dict[str, object]
 
 
+def _sanitize_vocabulary(vocabulary: list[object]) -> list[str]:
+    sanitized: list[str] = []
+    seen: set[str] = set()
+    for token in vocabulary:
+        normalized = str(token)
+        if normalized in {"", "[UNK]"}:
+            continue
+        if normalized in seen:
+            continue
+        sanitized.append(normalized)
+        seen.add(normalized)
+    return sanitized
+
+
 def build_baseline_pipeline(config: BaselineConfig) -> Pipeline:
     return Pipeline(
         steps=[
@@ -49,7 +63,11 @@ def build_baseline_pipeline(config: BaselineConfig) -> Pipeline:
 def adapt_vectorizer(train_texts: np.ndarray, config: NeuralConfig) -> keras.layers.TextVectorization:
     vectorizer = build_text_vectorizer(config.max_tokens, config.sequence_length)
     vectorizer.adapt(tf.data.Dataset.from_tensor_slices(train_texts).batch(1024))
-    return vectorizer
+    clean_vocabulary = _sanitize_vocabulary(vectorizer.get_vocabulary())
+
+    clean_vectorizer = build_text_vectorizer(config.max_tokens, config.sequence_length)
+    clean_vectorizer.set_vocabulary(clean_vocabulary)
+    return clean_vectorizer
 
 
 def build_neural_model(

@@ -9,6 +9,8 @@ import mlflow
 import numpy as np
 import pandas as pd
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
 
 class SentimentPyfuncModel(mlflow.pyfunc.PythonModel):
     def __init__(self, backend: str):
@@ -86,14 +88,33 @@ def log_deployable_model(model, backend: str, artifact_path: str, metadata: dict
             }
         )
         signature = mlflow.models.infer_signature(example_input, example_output)
+        if backend == "sklearn":
+            pip_requirements = [
+                "mlflow",
+                "cloudpickle",
+                "scikit-learn",
+                "pandas",
+                "numpy",
+                "joblib",
+            ]
+        else:
+            pip_requirements = [
+                "mlflow",
+                "cloudpickle",
+                "tensorflow",
+                "pandas",
+                "numpy",
+            ]
 
         mlflow.pyfunc.log_model(
-            artifact_path=artifact_path,
+            name=artifact_path,
             python_model=SentimentPyfuncModel(backend),
             artifacts={
                 "model": str(model_path),
                 "metadata": str(metadata_path),
             },
+            code_paths=[str(PROJECT_ROOT / "src")],
             input_example=example_input,
             signature=signature,
+            pip_requirements=pip_requirements,
         )

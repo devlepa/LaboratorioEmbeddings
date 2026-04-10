@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import shutil
 from typing import Any
 
 import numpy as np
@@ -9,6 +10,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from imdb_sentiment.config import DatasetConfig, SplitConfig
+from imdb_sentiment.preprocessing import normalize_text
 
 
 @dataclass(slots=True)
@@ -53,36 +55,93 @@ def _normalize_labels(series: pd.Series) -> pd.Series:
     return normalized.astype(int)
 
 
-def _discover_kaggle_file(handle: str, requested_file_path: str) -> str:
+def _dataset_cache_base(handle: str) -> Path:
+    owner, slug = handle.split("/", maxsplit=1)
+    return Path.home() / ".cache" / "kagglehub" / "datasets" / owner / slug
+
+
+def _find_cached_dataset_file(handle: str, requested_file_path: str) -> tuple[Path, str] | None:
+    cache_base = _dataset_cache_base(handle)
+    versions_dir = cache_base / "versions"
+    if not versions_dir.exists():
+        return None
+
+    version_dirs = sorted((path for path in versions_dir.iterdir() if path.is_dir()), reverse=True)
+    for version_dir in version_dirs:
+        if requested_file_path.strip():
+            local_file = version_dir / requested_file_path
+            if local_file.exists():
+                return local_file, requested_file_path
+            continue
+
+        csv_candidates = sorted(version_dir.rglob("*.csv"))
+        if csv_candidates:
+            local_file = csv_candidates[0]
+            return local_file, local_file.relative_to(version_dir).as_posix()
+    return None
+
+
+def _locate_file_in_dataset_dir(dataset_dir: Path, requested_file_path: str) -> tuple[Path, str] | None:
     if requested_file_path.strip():
-        return requested_file_path
+        local_file = dataset_dir / requested_file_path
+        if local_file.exists():
+            return local_file, requested_file_path
+        return None
 
-    import kagglehub
-
-    dataset_dir = Path(kagglehub.dataset_download(handle))
     csv_candidates = sorted(dataset_dir.rglob("*.csv"))
     if not csv_candidates:
-        raise FileNotFoundError(f"No se encontró ningún CSV dentro de {dataset_dir}.")
-    return csv_candidates[0].relative_to(dataset_dir).as_posix()
+        return None
+    local_file = csv_candidates[0]
+    return local_file, local_file.relative_to(dataset_dir).as_posix()
+
+
+def _download_dataset_root(handle: str, *, force_download: bool = False) -> Path:
+    import kagglehub
+    from kagglehub.exceptions import DataCorruptionError
+
+    try:
+        return Path(kagglehub.dataset_download(handle, force_download=force_download))
+    except DataCorruptionError:
+        if force_download:
+            raise
+
+        dataset_cache_dir = _dataset_cache_base(handle)
+        if dataset_cache_dir.exists():
+            shutil.rmtree(dataset_cache_dir, ignore_errors=True)
+        return Path(kagglehub.dataset_download(handle, force_download=True))
+
+
+def _resolve_local_dataset_file(handle: str, requested_file_path: str) -> tuple[Path, str]:
+    cached = _find_cached_dataset_file(handle, requested_file_path)
+    if cached is not None:
+        return cached
+
+    dataset_dir = _download_dataset_root(handle)
+    located = _locate_file_in_dataset_dir(dataset_dir, requested_file_path)
+    if located is not None:
+        return located
+
+    dataset_cache_dir = _dataset_cache_base(handle)
+    if dataset_cache_dir.exists():
+        shutil.rmtree(dataset_cache_dir, ignore_errors=True)
+
+    dataset_dir = _download_dataset_root(handle, force_download=True)
+    located = _locate_file_in_dataset_dir(dataset_dir, requested_file_path)
+    if located is not None:
+        return located
+
+    if requested_file_path.strip():
+        raise FileNotFoundError(f"No se encontró el archivo solicitado dentro del dataset: {dataset_dir / requested_file_path}")
+    raise FileNotFoundError(f"No se encontró ningún CSV dentro de {dataset_dir}.")
 
 
 def load_imdb_spanish_dataframe(config: DatasetConfig) -> tuple[pd.DataFrame, dict[str, Any]]:
-    import kagglehub
-    from kagglehub import KaggleDatasetAdapter
-
-    file_path = _discover_kaggle_file(config.handle, config.file_path)
-    load_fn = getattr(kagglehub, "load_dataset", None) or getattr(kagglehub, "dataset_load", None)
-    if load_fn is None:
-        raise AttributeError("La versión instalada de kagglehub no expone load_dataset ni dataset_load.")
-
-    dataframe = load_fn(
-        KaggleDatasetAdapter.PANDAS,
-        config.handle,
-        file_path,
-    )
+    local_file, file_path = _resolve_local_dataset_file(config.handle, config.file_path)
+    dataframe = pd.read_csv(local_file, low_memory=False)
     metadata = {
         "dataset_handle": config.handle,
         "dataset_file_path": file_path,
+        "local_dataset_file": str(local_file),
         "rows": int(len(dataframe)),
     }
     return dataframe, metadata
@@ -96,6 +155,8 @@ def prepare_dataset_splits(dataset_config: DatasetConfig, split_config: SplitCon
     prepared = dataframe[[text_column, label_column]].dropna().copy()
     prepared[text_column] = prepared[text_column].astype(str).str.strip()
     prepared = prepared[prepared[text_column] != ""]
+    normalized_text = prepared[text_column].map(normalize_text)
+    prepared = prepared[normalized_text != ""].copy()
     prepared[label_column] = _normalize_labels(prepared[label_column])
 
     x = prepared[text_column].to_numpy(dtype=object)
@@ -152,4 +213,3 @@ def prepare_dataset_splits(dataset_config: DatasetConfig, split_config: SplitCon
         label_column=label_column,
         dataset_metadata=metadata,
     )
-

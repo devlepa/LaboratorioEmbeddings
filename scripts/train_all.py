@@ -116,7 +116,11 @@ def run_baseline(config, experiment: ExperimentConfig, split, summary_rows: list
         "backend": "sklearn",
         "model_name": experiment.name,
     }
-    log_deployable_model(pipeline, backend="sklearn", artifact_path="model", metadata=model_metadata)
+    try:
+        log_deployable_model(pipeline, backend="sklearn", artifact_path="model", metadata=model_metadata)
+    except Exception as exc:
+        mlflow.set_tag("model_artifact_upload_error", str(exc)[:500])
+        print(f"WARNING: No se pudo subir el artefacto del modelo ({experiment.name}): {exc}", file=sys.stderr)
 
     summary_rows.append(
         {
@@ -208,7 +212,11 @@ def run_neural(config, experiment: ExperimentConfig, split, summary_rows: list[d
         "backend": "keras",
         "model_name": experiment.name,
     }
-    log_deployable_model(neural_artifacts.model, backend="keras", artifact_path="model", metadata=model_metadata)
+    try:
+        log_deployable_model(neural_artifacts.model, backend="keras", artifact_path="model", metadata=model_metadata)
+    except Exception as exc:
+        mlflow.set_tag("model_artifact_upload_error", str(exc)[:500])
+        print(f"WARNING: No se pudo subir el artefacto del modelo ({experiment.name}): {exc}", file=sys.stderr)
 
     summary_rows.append(
         {
