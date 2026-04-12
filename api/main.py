@@ -1,13 +1,22 @@
 from __future__ import annotations
 
 import os
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 import mlflow
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+# Asegura que el paquete imdb_sentiment sea importable tanto en desarrollo
+# (carga desde src/) como al servir desde un artifact MLflow que incluye
+# el código empaquetado en artifacts/code/src/.
+_SRC = Path(__file__).resolve().parents[1] / "src"
+if _SRC.exists() and str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
 MODEL_URI = os.getenv("MODEL_URI", "models:/imdb-spanish-sentiment@champion")
 TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
