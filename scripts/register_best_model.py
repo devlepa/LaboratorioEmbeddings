@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import sys
 
@@ -24,8 +25,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    if args.tracking_uri:
-        mlflow.set_tracking_uri(args.tracking_uri)
+    tracking_uri = args.tracking_uri or os.environ.get("MLFLOW_TRACKING_URI")
+    if tracking_uri:
+        mlflow.set_tracking_uri(tracking_uri)
 
     client = mlflow.MlflowClient()
     experiment = client.get_experiment_by_name(args.experiment_name)
