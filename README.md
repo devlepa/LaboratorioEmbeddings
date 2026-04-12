@@ -19,21 +19,19 @@ Proyecto base para el laboratorio de análisis de sentimientos sobre el dataset 
 - `api/main.py`: API para despliegue en Cloud9
 - `notebooks/`: notebooks explicativos del flujo completo
 
-## Credenciales de Kaggle
+## Variables de entorno
 
-El dataset se descarga automáticamente la primera vez mediante `kagglehub`. Para eso necesitás tener configuradas las credenciales de Kaggle:
-
-1. Entrá a [kaggle.com](https://www.kaggle.com) → Account → API → **Create New Token**. Eso descarga un archivo `kaggle.json`.
-2. Exportá las variables de entorno antes de ejecutar cualquier script:
+Copiá el archivo de plantilla y completá los valores reales antes de cualquier otro paso:
 
 ```bash
-export KAGGLE_USERNAME="tu_usuario_de_kaggle"
-export KAGGLE_KEY="tu_api_key_de_kaggle"
+cp .env.example .env
 ```
 
-## Entorno virtual
+Editá `.env` con tu DNS público de Cloud9, tus credenciales de Kaggle y el URI del modelo. El DNS lo encontrás en el botón **Preview** de Cloud9.
 
-La forma más rápida es usar el script que cubre todos los pasos (venv, dependencias, modelos de spaCy y kernel de Jupyter):
+> `.env` está en `.gitignore` y nunca se sube al repositorio.
+
+## Entorno virtual
 
 ```bash
 bash scripts/create_venv.sh
@@ -43,7 +41,7 @@ source .venv/bin/activate
 Si preferís hacerlo manualmente:
 
 ```bash
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python -m spacy download es_core_news_md
@@ -53,31 +51,31 @@ python -m ipykernel install --user --name imdb-spanish-sentiment --display-name 
 
 ## Flujo completo de ejecución
 
-Los pasos siguientes deben ejecutarse en este orden.
+Cargá las variables de entorno al inicio de cada terminal nueva:
+
+```bash
+source .env
+```
+
+Los pasos deben ejecutarse en este orden.
 
 ### 1. Levantar el servidor de MLflow (terminal dedicada)
 
-Iniciá el servidor antes de entrenar para que todas las corridas queden registradas en él:
-
 ```bash
-export MLFLOW_TRACKING_URI="http://localhost:5000"
-
+source .env
 mlflow server \
   --host 0.0.0.0 \
   --port 5000 \
-  --backend-store-uri sqlite:///mlflow.db \
-  --default-artifact-root ./mlruns
+  --allowed-hosts "*" \
+  --cors-allowed-origins "*"
 ```
 
-Dejá esta terminal corriendo. La UI queda disponible en `http://localhost:5000`.
+Dejá esta terminal corriendo. La UI queda disponible en `http://<CLOUD9_PUBLIC_DNS>:5000`.
 
 ### 2. Ejecutar los experimentos (nueva terminal)
 
 ```bash
-export MLFLOW_TRACKING_URI="http://localhost:5000"
-export KAGGLE_USERNAME="tu_usuario_de_kaggle"
-export KAGGLE_KEY="tu_api_key_de_kaggle"
-
+source .env && source .venv/bin/activate
 python scripts/train_all.py --config configs/experiments.yaml
 ```
 
@@ -91,8 +89,6 @@ python scripts/train_all.py --config configs/experiments.yaml \
 ### 3. Generar el reporte comparativo
 
 ```bash
-export MLFLOW_TRACKING_URI="http://localhost:5000"
-
 python scripts/generate_report.py --experiment-name imdb-spanish-sentiment
 ```
 
@@ -105,8 +101,6 @@ Esto genera:
 ### 4. Registrar el mejor modelo
 
 ```bash
-export MLFLOW_TRACKING_URI="http://localhost:5000"
-
 python scripts/register_best_model.py \
   --experiment-name imdb-spanish-sentiment \
   --registered-model-name imdb-spanish-sentiment
@@ -121,22 +115,20 @@ models:/imdb-spanish-sentiment@champion
 ### 5. Levantar la API (nueva terminal)
 
 ```bash
-export MLFLOW_TRACKING_URI="http://localhost:5000"
-export MODEL_URI="models:/imdb-spanish-sentiment@champion"
-
-uvicorn api.main:app --host 0.0.0.0 --port 8080
+source .env && source .venv/bin/activate
+uvicorn api.main:app --host 0.0.0.0 --port 8000
 ```
 
-Si querés apuntar a una versión numérica específica en lugar del alias:
+Si querés apuntar a una versión numérica específica en lugar del alias, editá `MODEL_URI` en `.env`:
 
-```bash
-export MODEL_URI="models:/imdb-spanish-sentiment/3"
+```
+MODEL_URI=models:/imdb-spanish-sentiment/3
 ```
 
 ### 6. Verificar que la API responde
 
 ```bash
-curl -X POST "http://localhost:8080/predict" \
+curl -X POST "http://<CLOUD9_PUBLIC_DNS>:8000/predict" \
   -H "Content-Type: application/json" \
   -d '{"texts": ["La película fue excelente", "Una historia aburrida y lenta"]}'
 ```
