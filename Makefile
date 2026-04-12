@@ -23,9 +23,12 @@ register:
 select:
 	$(PYTHON) scripts/select_best_model.py --verbose
 
-# Lanza la API usando el mejor modelo encontrado en los artefactos locales.
+# Lanza la API con el modelo campeón (models/champion/).
 # MODEL_URI puede sobreescribirse:  make api MODEL_URI=<ruta_o_uri>
-MODEL_URI ?= $(shell $(PYTHON) scripts/select_best_model.py)
 api:
-	MODEL_URI="$(MODEL_URI)" PYTHONPATH=src $(PYTHON) -m uvicorn api.main:app --host 0.0.0.0 --port 8080
+	PYTHONPATH=src $(PYTHON) -m uvicorn api.main:app --host 0.0.0.0 --port 8080
+
+# Actualiza models/champion/ con el mejor modelo disponible en mlruns/.
+update-champion:
+	$(PYTHON) scripts/select_best_model.py --verbose 2>&1 | tail -1 | xargs -I{} sh -c 'rm -rf models/champion && cp -r "{}" models/champion'
 

@@ -18,7 +18,8 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if _SRC.exists() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-MODEL_URI = os.getenv("MODEL_URI", "models:/imdb-spanish-sentiment@champion")
+_DEFAULT_MODEL_URI = str(Path(__file__).resolve().parents[1] / "models" / "champion")
+MODEL_URI = os.getenv("MODEL_URI", _DEFAULT_MODEL_URI)
 TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
 _model = None
 
