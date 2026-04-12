@@ -1,0 +1,5 @@
+{
+  "threshold": 0.5,
+  "backend": "sklearn",
+  "model_name": "baseline_tfidf_logreg"
+}

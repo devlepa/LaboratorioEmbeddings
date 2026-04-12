@@ -3,6 +3,7 @@ __pycache__/
 .python-version
 .venv/
 artifacts/
+!models/champion/artifacts/
 data/
 mlruns/
 mlflow.db
