@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import tempfile
 from dataclasses import asdict
@@ -11,6 +12,24 @@ from pathlib import Path
 import mlflow
 import numpy as np
 import pandas as pd
+
+
+def _require_remote_tracking_uri(uri: str | None) -> str:
+    """Aborta si MLFLOW_TRACKING_URI no apunta a un servidor HTTP/HTTPS remoto."""
+    if not uri:
+        sys.exit(
+            "ERROR: MLFLOW_TRACKING_URI no está configurado.\n"
+            "Exportá la variable antes de ejecutar:\n"
+            "  export MLFLOW_TRACKING_URI=http://<host>:5000"
+        )
+    if not uri.startswith(("http://", "https://")):
+        sys.exit(
+            f"ERROR: MLFLOW_TRACKING_URI='{uri}' no es una URL HTTP/HTTPS remota.\n"
+            "El entrenamiento solo puede ejecutarse apuntando al servidor MLflow remoto.\n"
+            "Corregí la variable:\n"
+            "  export MLFLOW_TRACKING_URI=http://<host>:5000"
+        )
+    return uri
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = PROJECT_ROOT / "src"
@@ -236,8 +255,8 @@ def main() -> None:
     config = load_config(PROJECT_ROOT / args.config)
     set_random_seed(config.splits.random_state)
 
-    if args.tracking_uri:
-        mlflow.set_tracking_uri(args.tracking_uri)
+    tracking_uri = _require_remote_tracking_uri(args.tracking_uri or os.environ.get("MLFLOW_TRACKING_URI"))
+    mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(config.tracking.experiment_name)
 
     split = prepare_dataset_splits(config.dataset, config.splits)

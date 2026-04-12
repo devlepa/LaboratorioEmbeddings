@@ -5,6 +5,7 @@ __pycache__/
 artifacts/
 data/
 mlruns/
+mlflow.db
 resources/cache/
 resources/tmp/
 *.egg-info/

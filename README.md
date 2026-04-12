@@ -21,15 +21,19 @@ Proyecto base para el laboratorio de análisis de sentimientos sobre el dataset 
 
 ## Variables de entorno
 
-Copiá el archivo de plantilla y completá los valores reales antes de cualquier otro paso:
+Exportá las variables al inicio de **cada terminal nueva** antes de ejecutar cualquier comando. Reemplazá los valores con los tuyos:
 
 ```bash
-cp .env.example .env
+export MLFLOW_TRACKING_URI=http://<tu-dns-publico>.vfs.cloud9.us-east-1.amazonaws.com:5000
+export API_PUBLIC_URL=http://<tu-dns-publico>.vfs.cloud9.us-east-1.amazonaws.com:8000
+export MODEL_URI=models:/imdb-spanish-sentiment@champion
+export KAGGLE_USERNAME=tu_usuario_de_kaggle
+export KAGGLE_KEY=tu_api_key_de_kaggle
 ```
 
-Editá `.env` con tu DNS público de Cloud9, tus credenciales de Kaggle y el URI del modelo. El DNS lo encontrás en el botón **Preview** de Cloud9.
+El DNS público lo encontrás en el botón **Preview** de Cloud9. Cambia cada vez que reiniciás el entorno.
 
-> `.env` está en `.gitignore` y nunca se sube al repositorio.
+> Si usás el archivo `.env`, asegurate de que `MLFLOW_TRACKING_URI` tenga la URL HTTP correcta antes de hacer `source .env`.
 
 ## Entorno virtual
 
@@ -57,25 +61,25 @@ Cargá las variables de entorno al inicio de cada terminal nueva:
 source .env
 ```
 
-Los pasos deben ejecutarse en este orden.
+Los pasos deben ejecutarse en este orden. Exportá las variables de entorno (ver sección anterior) en cada terminal nueva antes de empezar.
 
-### 1. Levantar el servidor de MLflow (terminal dedicada)
+### 1. Levantar el servidor de MLflow (terminal dedicada en Cloud9)
 
 ```bash
-source .env
 mlflow server \
   --host 0.0.0.0 \
   --port 5000 \
+  --serve-artifacts \
   --allowed-hosts "*" \
   --cors-allowed-origins "*"
 ```
 
 Dejá esta terminal corriendo. La UI queda disponible en `http://<CLOUD9_PUBLIC_DNS>:5000`.
 
-### 2. Ejecutar los experimentos (nueva terminal)
+### 2. Ejecutar los experimentos (nueva terminal, desde tu máquina local)
 
 ```bash
-source .env && source .venv/bin/activate
+source .venv/bin/activate
 python scripts/train_all.py --config configs/experiments.yaml
 ```
 
@@ -112,17 +116,17 @@ El alias `champion` queda asignado automáticamente. El URI del modelo es siempr
 models:/imdb-spanish-sentiment@champion
 ```
 
-### 5. Levantar la API (nueva terminal)
+### 5. Levantar la API (nueva terminal en Cloud9)
 
 ```bash
-source .env && source .venv/bin/activate
+source .venv/bin/activate
 uvicorn api.main:app --host 0.0.0.0 --port 8000
 ```
 
-Si querés apuntar a una versión numérica específica en lugar del alias, editá `MODEL_URI` en `.env`:
+Si querés apuntar a una versión numérica específica en lugar del alias:
 
-```
-MODEL_URI=models:/imdb-spanish-sentiment/3
+```bash
+export MODEL_URI=models:/imdb-spanish-sentiment/3
 ```
 
 ### 6. Verificar que la API responde
