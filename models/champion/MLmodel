@@ -1,0 +1,39 @@
+artifact_path: /home/juan_leon/Escritorio/Universidad/nlp/LaboratorioEmbeddings/mlruns/1/models/m-414b9c0dea8b42c1a3c651845cb6e568/artifacts
+flavors:
+  python_function:
+    artifacts:
+      metadata:
+        path: artifacts/metadata.json
+        uri: /tmp/tmpg39jahjv/metadata.json
+      model:
+        path: artifacts/baseline_pipeline.joblib
+        uri: /tmp/tmpg39jahjv/baseline_pipeline.joblib
+    cloudpickle_version: 3.1.2
+    code: code
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.pyfunc.model
+    python_model: python_model.pkl
+    python_version: 3.13.7
+    streamable: false
+is_signature_from_type_hint: false
+mlflow_version: 3.11.1
+model_id: m-414b9c0dea8b42c1a3c651845cb6e568
+model_size_bytes: 2377989
+model_uuid: m-414b9c0dea8b42c1a3c651845cb6e568
+prompts: null
+run_id: c7b6051007814f5fb79fb9d985e9faff
+saved_input_example_info:
+  artifact_path: input_example.json
+  pandas_orient: split
+  serving_input_path: serving_input_example.json
+  type: dataframe
+signature:
+  inputs: '[{"type": "string", "name": "text", "required": true}]'
+  outputs: '[{"type": "string", "name": "text", "required": true}, {"type": "double",
+    "name": "probability", "required": true}, {"type": "long", "name": "predicted_class",
+    "required": true}, {"type": "string", "name": "predicted_label", "required": true}]'
+  params: null
+type_hint_from_example: false
+utc_time_created: '2026-04-12 16:58:05.576484'

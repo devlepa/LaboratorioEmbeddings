@@ -1,0 +1,12 @@
+{
+  "dataframe_split": {
+    "columns": [
+      "text"
+    ],
+    "data": [
+      [
+        "Una pel\u00edcula maravillosa con actuaciones memorables."
+      ]
+    ]
+  }
+}
