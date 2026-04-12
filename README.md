@@ -19,58 +19,80 @@ Proyecto base para el laboratorio de análisis de sentimientos sobre el dataset 
 - `api/main.py`: API para despliegue en Cloud9
 - `notebooks/`: notebooks explicativos del flujo completo
 
+## Credenciales de Kaggle
+
+El dataset se descarga automáticamente la primera vez mediante `kagglehub`. Para eso necesitás tener configuradas las credenciales de Kaggle:
+
+1. Entrá a [kaggle.com](https://www.kaggle.com) → Account → API → **Create New Token**. Eso descarga un archivo `kaggle.json`.
+2. Exportá las variables de entorno antes de ejecutar cualquier script:
+
+```bash
+export KAGGLE_USERNAME="tu_usuario_de_kaggle"
+export KAGGLE_KEY="tu_api_key_de_kaggle"
+```
+
 ## Entorno virtual
 
-1. Crear entorno:
+La forma más rápida es usar el script que cubre todos los pasos (venv, dependencias, modelos de spaCy y kernel de Jupyter):
+
+```bash
+bash scripts/create_venv.sh
+source .venv/bin/activate
+```
+
+Si preferís hacerlo manualmente:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-```
-
-2. Instalar dependencias:
-
-```bash
 pip install -r requirements.txt
 python -m spacy download es_core_news_md
 python -m spacy download es_core_news_lg
-```
-
-3. Registrar kernel para Jupyter:
-
-```bash
 python -m ipykernel install --user --name imdb-spanish-sentiment --display-name "Python (IMDB Spanish Sentiment)"
 ```
 
-También puedes usar:
+## Flujo completo de ejecución
+
+Los pasos siguientes deben ejecutarse en este orden.
+
+### 1. Levantar el servidor de MLflow (terminal dedicada)
+
+Iniciá el servidor antes de entrenar para que todas las corridas queden registradas en él:
 
 ```bash
-bash scripts/create_venv.sh
+export MLFLOW_TRACKING_URI="http://localhost:5000"
+
+mlflow server \
+  --host 0.0.0.0 \
+  --port 5000 \
+  --backend-store-uri sqlite:///mlflow.db \
+  --default-artifact-root ./mlruns
 ```
 
-## Ejecución de experimentos
+Dejá esta terminal corriendo. La UI queda disponible en `http://localhost:5000`.
 
-Define primero el tracking de MLflow si vas a usar una máquina dedicada:
-
-```bash
-export MLFLOW_TRACKING_URI="http://TU_SERVIDOR_MLFLOW:5000"
-```
-
-Luego ejecuta:
+### 2. Ejecutar los experimentos (nueva terminal)
 
 ```bash
+export MLFLOW_TRACKING_URI="http://localhost:5000"
+export KAGGLE_USERNAME="tu_usuario_de_kaggle"
+export KAGGLE_KEY="tu_api_key_de_kaggle"
+
 python scripts/train_all.py --config configs/experiments.yaml
 ```
 
 Para correr sólo una parte:
 
 ```bash
-python scripts/train_all.py --config configs/experiments.yaml --only baseline_tfidf_logreg dense_trainable_embeddings
+python scripts/train_all.py --config configs/experiments.yaml \
+  --only baseline_tfidf_logreg dense_trainable_embeddings
 ```
 
-## Reporte comparativo
+### 3. Generar el reporte comparativo
 
 ```bash
+export MLFLOW_TRACKING_URI="http://localhost:5000"
+
 python scripts/generate_report.py --experiment-name imdb-spanish-sentiment
 ```
 
@@ -80,36 +102,38 @@ Esto genera:
 - `artifacts/reports/comparative_report.md`
 - `artifacts/reports/test_f1_comparison.png`
 
-## Registro del mejor modelo
+### 4. Registrar el mejor modelo
 
 ```bash
+export MLFLOW_TRACKING_URI="http://localhost:5000"
+
 python scripts/register_best_model.py \
   --experiment-name imdb-spanish-sentiment \
   --registered-model-name imdb-spanish-sentiment
 ```
 
-La API usa por defecto:
+El alias `champion` queda asignado automáticamente. El URI del modelo es siempre:
 
-```bash
+```
 models:/imdb-spanish-sentiment@champion
 ```
 
-## API para Cloud9
-
-Variables recomendadas:
+### 5. Levantar la API (nueva terminal)
 
 ```bash
-export MLFLOW_TRACKING_URI="http://TU_SERVIDOR_MLFLOW:5000"
+export MLFLOW_TRACKING_URI="http://localhost:5000"
 export MODEL_URI="models:/imdb-spanish-sentiment@champion"
-```
 
-Levantar servicio:
-
-```bash
 uvicorn api.main:app --host 0.0.0.0 --port 8080
 ```
 
-Ejemplo de consumo:
+Si querés apuntar a una versión numérica específica en lugar del alias:
+
+```bash
+export MODEL_URI="models:/imdb-spanish-sentiment/3"
+```
+
+### 6. Verificar que la API responde
 
 ```bash
 curl -X POST "http://localhost:8080/predict" \

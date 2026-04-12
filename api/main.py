@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 from typing import Any
 
 import mlflow
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-
-app = FastAPI(title="IMDB Spanish Sentiment API", version="1.0.0")
 
 MODEL_URI = os.getenv("MODEL_URI", "models:/imdb-spanish-sentiment@champion")
 TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
@@ -23,12 +22,16 @@ class PredictionResponse(BaseModel):
     predictions: list[dict[str, Any]]
 
 
-@app.on_event("startup")
-def startup_event() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global _model
     if TRACKING_URI:
         mlflow.set_tracking_uri(TRACKING_URI)
     _model = mlflow.pyfunc.load_model(MODEL_URI)
+    yield
+
+
+app = FastAPI(title="IMDB Spanish Sentiment API", version="1.0.0", lifespan=lifespan)
 
 
 @app.get("/health")
