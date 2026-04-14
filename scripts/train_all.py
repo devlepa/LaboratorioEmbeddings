@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import sys
 import tempfile
 from dataclasses import asdict
@@ -42,7 +43,25 @@ from imdb_sentiment.embeddings import build_embedding_matrix
 from imdb_sentiment.evaluate import binary_metrics, save_evaluation_artifacts, save_history_plot, save_model_summary
 from imdb_sentiment.modeling import adapt_vectorizer, build_baseline_pipeline, build_neural_model, fit_neural_model
 from imdb_sentiment.tracking import log_deployable_model
-from imdb_sentiment.utils import ensure_dir, flatten_mapping, save_json, set_random_seed
+
+
+def _save_json(payload: dict, path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def flatten_mapping(payload: dict, prefix: str = "") -> dict:
+    flat: dict = {}
+    for key, value in payload.items():
+        composite_key = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, dict):
+            flat.update(flatten_mapping(value, composite_key))
+        elif isinstance(value, (list, tuple)):
+            flat[composite_key] = json.dumps(value, ensure_ascii=False)
+        else:
+            flat[composite_key] = value
+    return flat
 
 
 def parse_args() -> argparse.Namespace:
@@ -123,8 +142,8 @@ def run_baseline(config, experiment: ExperimentConfig, split, summary_rows: list
     with tempfile.TemporaryDirectory() as temp_dir:
         analysis_dir = Path(temp_dir) / "analysis"
         analysis_dir.mkdir(parents=True, exist_ok=True)
-        save_json(split.dataset_metadata, analysis_dir / "dataset_metadata.json")
-        save_json(asdict(experiment), analysis_dir / "experiment_config.json")
+        _save_json(split.dataset_metadata, analysis_dir / "dataset_metadata.json")
+        _save_json(asdict(experiment), analysis_dir / "experiment_config.json")
         save_evaluation_artifacts(split.y_val, val_probabilities, val_predictions, analysis_dir, prefix="validation")
         save_evaluation_artifacts(split.y_test, test_probabilities, test_predictions, analysis_dir, prefix="test")
         _save_baseline_coefficients(pipeline, analysis_dir / "top_tfidf_coefficients.csv")
@@ -212,18 +231,18 @@ def run_neural(config, experiment: ExperimentConfig, split, summary_rows: list[d
     with tempfile.TemporaryDirectory() as temp_dir:
         analysis_dir = Path(temp_dir) / "analysis"
         analysis_dir.mkdir(parents=True, exist_ok=True)
-        save_json(split.dataset_metadata, analysis_dir / "dataset_metadata.json")
-        save_json(asdict(experiment), analysis_dir / "experiment_config.json")
-        save_json(neural_artifacts.embedding_info, analysis_dir / "embedding_info.json")
+        _save_json(split.dataset_metadata, analysis_dir / "dataset_metadata.json")
+        _save_json(asdict(experiment), analysis_dir / "experiment_config.json")
+        _save_json(neural_artifacts.embedding_info, analysis_dir / "embedding_info.json")
         if embedding_artifacts:
-            save_json(embedding_artifacts, analysis_dir / "embedding_coverage.json")
+            _save_json(embedding_artifacts, analysis_dir / "embedding_coverage.json")
         _save_text_lines(vocabulary, analysis_dir / "vocabulary.txt")
         save_evaluation_artifacts(split.y_val, val_probabilities, val_predictions, analysis_dir, prefix="validation")
         save_evaluation_artifacts(split.y_test, test_probabilities, test_predictions, analysis_dir, prefix="test")
         history_plot = save_history_plot(history, analysis_dir)
         save_model_summary(neural_artifacts.model, analysis_dir)
         if history_plot is None:
-            save_json({"warning": "No se generó historial de entrenamiento."}, analysis_dir / "history_warning.json")
+            _save_json({"warning": "No se generó historial de entrenamiento."}, analysis_dir / "history_warning.json")
         mlflow.log_artifacts(str(analysis_dir), artifact_path="analysis")
 
     model_metadata = {
@@ -253,7 +272,14 @@ def run_neural(config, experiment: ExperimentConfig, split, summary_rows: list[d
 def main() -> None:
     args = parse_args()
     config = load_config(PROJECT_ROOT / args.config)
-    set_random_seed(config.splits.random_state)
+    seed = config.splits.random_state
+    random.seed(seed)
+    np.random.seed(seed)
+    try:
+        import tensorflow as tf
+        tf.keras.utils.set_random_seed(seed)
+    except Exception:
+        pass
 
     tracking_uri = _require_remote_tracking_uri(args.tracking_uri or os.environ.get("MLFLOW_TRACKING_URI"))
     mlflow.set_tracking_uri(tracking_uri)
@@ -270,7 +296,8 @@ def main() -> None:
             else:
                 run_neural(config, experiment, split, summary_rows)
 
-    summary_dir = ensure_dir(PROJECT_ROOT / config.tracking.artifact_location)
+    summary_dir = PROJECT_ROOT / config.tracking.artifact_location
+    summary_dir.mkdir(parents=True, exist_ok=True)
     summary_path = summary_dir / "run_summary.csv"
     pd.DataFrame(summary_rows).sort_values("test_f1", ascending=False).to_csv(summary_path, index=False)
     print(json.dumps({"summary_path": str(summary_path), "experiments_executed": len(summary_rows)}, indent=2, ensure_ascii=False))

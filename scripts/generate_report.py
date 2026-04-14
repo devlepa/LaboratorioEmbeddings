@@ -15,9 +15,6 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from imdb_sentiment.utils import ensure_dir
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Genera el reporte comparativo desde MLflow.")
     parser.add_argument("--experiment-name", required=True, help="Nombre del experimento en MLflow.")
@@ -103,7 +100,8 @@ def main() -> None:
     if runs_frame.empty:
         raise ValueError("No se encontraron corridas terminadas para generar el reporte.")
 
-    output_dir = ensure_dir(PROJECT_ROOT / args.output_dir)
+    output_dir = PROJECT_ROOT / args.output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
     csv_path = output_dir / "comparison.csv"
     md_path = output_dir / "comparative_report.md"
     plot_path = output_dir / "test_f1_comparison.png"

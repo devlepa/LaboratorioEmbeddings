@@ -1,0 +1,6 @@
+{
+  "name": "baseline_tfidf_logreg",
+  "type": "baseline",
+  "description": "Baseline clásico con TF-IDF y regresión logística.",
+  "embedding": null
+}

@@ -1,0 +1,23 @@
+{
+  "dataset_handle": "luisdiegofv97/imdb-dataset-of-50k-movie-reviews-spanish",
+  "dataset_file_path": "IMDB Dataset SPANISH.csv",
+  "local_dataset_file": "/home/juan_leon/.cache/kagglehub/datasets/luisdiegofv97/imdb-dataset-of-50k-movie-reviews-spanish/versions/1/IMDB Dataset SPANISH.csv",
+  "rows": 50000,
+  "text_column": "review_es",
+  "label_column": "sentiment",
+  "rows_after_cleaning": 50000,
+  "class_distribution": {
+    "train": {
+      "negative": 20000,
+      "positive": 20000
+    },
+    "validation": {
+      "negative": 2500,
+      "positive": 2500
+    },
+    "test": {
+      "negative": 2500,
+      "positive": 2500
+    }
+  }
+}
