@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IMDB Sentiment — Dashboard</title>
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0f1117;
+      --surface:     #1a1d2e;
+      --surface2:    #232640;
+      --border:      #2e3154;
+      --accent:      #6c63ff;
+      --accent2:     #00d4aa;
+      --danger:      #ff6b6b;
+      --text:        #e8eaf6;
+      --text-muted:  #8b93c9;
+      --positive:    #00d4aa;
+      --negative:    #ff6b6b;
+      --radius:      12px;
+      --shadow:      0 4px 24px rgba(0,0,0,.4);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 64px;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1a1d2e 0%, #232650 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 28px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .header-left h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -.3px;
+    }
+    .header-left h1 span { color: var(--accent); }
+    .header-left p {
+      color: var(--text-muted);
+      font-size: .85rem;
+      margin-top: 4px;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    #status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 16px;
+      font-size: .82rem;
+      font-weight: 500;
+    }
+    #status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #555;
+      transition: background .4s;
+    }
+    #status-dot.ok  { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+    #status-dot.err { background: var(--danger);  box-shadow: 0 0 6px var(--danger); }
+    .api-url {
+      font-size: .78rem;
+      color: var(--text-muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-family: monospace;
+    }
+
+    /* ── Layout ── */
+    main { max-width: 1280px; margin: 40px auto; padding: 0 32px; }
+
+    section { margin-bottom: 40px; }
+    section > h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-left: 3px solid var(--accent);
+      padding-left: 12px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    /* ── Model meta strip ── */
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .meta-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .meta-item .label {
+      font-size: .72rem;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .meta-item .value {
+      font-size: 1rem;
+      font-weight: 600;
+      word-break: break-all;
+    }
+    .meta-item .value.mono { font-family: monospace; font-size: .88rem; }
+    .chip {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: .78rem;
+      font-weight: 600;
+    }
+    .chip-blue  { background: rgba(108,99,255,.2); color: var(--accent); }
+    .chip-green { background: rgba(0,212,170,.2);  color: var(--accent2); }
+
+    /* ── Metric cards ── */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 16px;
+    }
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent);
+    }
+    .metric-card.accent2::before { background: var(--accent2); }
+    .metric-card .metric-label {
+      font-size: .72rem;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .metric-card .metric-value {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+    .metric-card .metric-pct {
+      font-size: .85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ── Two-column layout ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ── Per-class table ── */
+    .per-class-card { padding: 24px; }
+    .per-class-card h3 {
+      font-size: .78rem;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .9rem;
+    }
+    thead th {
+      text-align: right;
+      padding: 8px 12px;
+      color: var(--text-muted);
+      font-size: .75rem;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    thead th:first-child { text-align: left; }
+    tbody td {
+      padding: 12px 12px;
+      border-bottom: 1px solid rgba(46,49,84,.5);
+      text-align: right;
+    }
+    tbody td:first-child { text-align: left; font-weight: 600; }
+    tbody tr:last-child td { border-bottom: none; }
+    .class-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .class-pill::before {
+      content: '';
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+    .class-pill.positive::before { background: var(--positive); }
+    .class-pill.negative::before { background: var(--negative); }
+
+    /* ── Dataset ── */
+    .dataset-card { padding: 28px; }
+    .dataset-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .dataset-source { font-family: monospace; font-size: .9rem; color: var(--accent); }
+    .dataset-rows {
+      text-align: right;
+    }
+    .dataset-rows .big { font-size: 2rem; font-weight: 700; }
+    .dataset-rows .label { font-size: .75rem; color: var(--text-muted); }
+    .splits-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .split-block {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .split-block .split-name {
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .split-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .split-row:last-child { margin-bottom: 0; }
+    .split-row .name { font-size: .85rem; }
+    .split-row .count { font-weight: 600; font-size: .9rem; }
+    .bar-wrap { margin-top: 6px; height: 4px; background: var(--border); border-radius: 2px; }
+    .bar-fill { height: 4px; border-radius: 2px; transition: width .6s ease; }
+    .bar-fill.pos { background: var(--positive); }
+    .bar-fill.neg { background: var(--negative); }
+
+    /* ── Experiment comparison ── */
+    .comparison-card { padding: 28px; }
+    .exp-row {
+      display: grid;
+      grid-template-columns: 230px 1fr 80px;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .exp-row:last-child { margin-bottom: 0; }
+    .exp-name {
+      font-size: .88rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .exp-name .crown { color: gold; font-size: 1rem; }
+    .bar-outer {
+      height: 28px;
+      background: var(--surface2);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+    .bar-inner {
+      height: 100%;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      padding-left: 10px;
+      font-size: .75rem;
+      font-weight: 600;
+      color: rgba(255,255,255,.9);
+      transition: width .8s cubic-bezier(.4,0,.2,1);
+      background: var(--accent);
+    }
+    .bar-inner.winner { background: linear-gradient(90deg, var(--accent2), #00a87d); }
+    .exp-f1 {
+      font-weight: 700;
+      font-size: .95rem;
+      text-align: right;
+    }
+    .exp-f1.winner { color: var(--accent2); }
+
+    /* ── Rationale ── */
+    .rationale-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .rationale-list li {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 14px 18px;
+      font-size: .9rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+    .rationale-list li strong { color: var(--text); }
+
+    /* ── Prediction form ── */
+    .predict-card { padding: 28px; }
+    .predict-card p.hint {
+      color: var(--text-muted);
+      font-size: .875rem;
+      margin-bottom: 20px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: .95rem;
+      font-family: inherit;
+      padding: 14px 16px;
+      resize: vertical;
+      outline: none;
+      transition: border-color .2s;
+    }
+    textarea:focus { border-color: var(--accent); }
+    .predict-hint {
+      font-size: .78rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+    .btn {
+      margin-top: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 28px;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn:hover { opacity: .88; }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .4; cursor: default; }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    .btn.loading .spinner { display: block; }
+    .btn.loading .btn-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Prediction results ── */
+    #predict-results { margin-top: 24px; display: flex; flex-direction: column; gap: 12px; }
+    .result-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+    }
+    .result-text {
+      font-size: .9rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .result-right { text-align: right; min-width: 140px; }
+    .result-label {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .result-label.positive { color: var(--positive); }
+    .result-label.negative { color: var(--negative); }
+    .result-prob {
+      font-size: .8rem;
+      color: var(--text-muted);
+    }
+    .prob-bar {
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .prob-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width .5s ease;
+    }
+    .prob-fill.positive { background: var(--positive); }
+    .prob-fill.negative { background: var(--negative); }
+
+    /* ── Error / loading states ── */
+    .loading-state {
+      color: var(--text-muted);
+      font-size: .875rem;
+      padding: 32px;
+      text-align: center;
+    }
+    .error-state {
+      color: var(--danger);
+      background: rgba(255,107,107,.08);
+      border: 1px solid rgba(255,107,107,.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: .875rem;
+    }
+
+    /* ── Separator ── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+
+    /* ── Skeleton loader ── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     HEADER
+═══════════════════════════════════════════ -->
+<header>
+  <div class="header-left">
+    <h1>IMDB Sentiment <span>Dashboard</span></h1>
+    <p>Análisis de sentimientos en español — Laboratorio de Embeddings</p>
+  </div>
+  <div class="header-right">
+    <div id="status-badge">
+      <span id="status-dot"></span>
+      <span id="status-text">Conectando…</span>
+    </div>
+    <div class="api-url" id="api-url-display">—</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ══ MODELO META ══ -->
+  <section>
+    <h2>Modelo en producción</h2>
+    <div class="meta-grid" id="meta-grid">
+      <div class="skeleton" style="height:80px"></div>
+      <div class="skeleton" style="height:80px"></div>
+      <div class="skeleton" style="height:80px"></div>
+      <div class="skeleton" style="height:80px"></div>
+      <div class="skeleton" style="height:80px"></div>
+    </div>
+  </section>
+
+  <!-- ══ TEST METRICS ══ -->
+  <section>
+    <h2>Métricas — Test set</h2>
+    <div class="metrics-grid" id="test-metrics">
+      <div class="skeleton" style="height:110px"></div>
+      <div class="skeleton" style="height:110px"></div>
+      <div class="skeleton" style="height:110px"></div>
+      <div class="skeleton" style="height:110px"></div>
+      <div class="skeleton" style="height:110px"></div>
+    </div>
+  </section>
+
+  <!-- ══ PER-CLASS + VALIDATION ══ -->
+  <section>
+    <div class="two-col">
+      <div class="card per-class-card" id="test-per-class">
+        <div class="skeleton" style="height:140px"></div>
+      </div>
+      <div class="card per-class-card" id="val-per-class">
+        <div class="skeleton" style="height:140px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ DATASET ══ -->
+  <section>
+    <h2>Dataset</h2>
+    <div class="card dataset-card" id="dataset-card">
+      <div class="skeleton" style="height:160px"></div>
+    </div>
+  </section>
+
+  <!-- ══ EXPERIMENT COMPARISON ══ -->
+  <section>
+    <h2>Comparación de experimentos</h2>
+    <div class="card comparison-card" id="comparison-card">
+      <div class="skeleton" style="height:280px"></div>
+    </div>
+  </section>
+
+  <!-- ══ SELECTION RATIONALE ══ -->
+  <section>
+    <h2>Criterio de selección</h2>
+    <ul class="rationale-list" id="rationale-list">
+      <li class="skeleton" style="height:48px"></li>
+      <li class="skeleton" style="height:48px"></li>
+      <li class="skeleton" style="height:48px"></li>
+    </ul>
+  </section>
+
+  <!-- ══ PREDICTION FORM ══ -->
+  <section>
+    <h2>Predicción en vivo</h2>
+    <div class="card predict-card">
+      <p class="hint">Escribe una o varias reseñas de película (una por línea) y el modelo predecirá el sentimiento.</p>
+      <textarea id="predict-input" placeholder="Una película magnífica, con actuaciones memorables y una dirección brillante.&#10;Historia aburrida y sin coherencia, una pérdida de tiempo total."></textarea>
+      <p class="predict-hint">Separa múltiples reseñas con una línea en blanco o una nueva línea.</p>
+      <button class="btn" id="predict-btn" onclick="predict()">
+        <span class="spinner"></span>
+        <span class="btn-text">Predecir sentimiento</span>
+      </button>
+      <div id="predict-results"></div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  // ── Config ────────────────────────────────────────────────
+  const API = 'http://ec2-13-223-188-95.compute-1.amazonaws.com:8000';
+
+  document.getElementById('api-url-display').textContent = API;
+
+  // ── Helpers ───────────────────────────────────────────────
+  const pct = v => v != null ? (v * 100).toFixed(2) + '%' : '—';
+  const num4 = v => v != null ? Number(v).toFixed(4) : '—';
+  const fmt  = v => v != null ? Number(v).toFixed(4) : '—';
+
+  function metricCard(label, value, isAccent2 = false) {
+    const displayVal = value != null ? (value * 100).toFixed(2) : '—';
+    const cls = isAccent2 ? 'metric-card accent2' : 'metric-card';
+    return `
+      <div class="${cls}">
+        <div class="metric-label">${label}</div>
+        <div class="metric-value">${displayVal}<span style="font-size:1.1rem;font-weight:400">%</span></div>
+      </div>`;
+  }
+
+  // ── Health check ──────────────────────────────────────────
+  async function checkHealth() {
+    const dot  = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+    try {
+      const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(6000) });
+      if (r.ok) {
+        dot.className = 'ok';
+        text.textContent = 'API operativa';
+      } else {
+        throw new Error(r.status);
+      }
+    } catch {
+      dot.className = 'err';
+      text.textContent = 'Sin conexión';
+    }
+  }
+
+  // ── Render model info ─────────────────────────────────────
+  function renderMeta(d) {
+    const created = d.created_utc
+      ? new Date(d.created_utc + 'Z').toLocaleString('es-ES', { dateStyle:'medium', timeStyle:'short' })
+      : '—';
+
+    document.getElementById('meta-grid').innerHTML = `
+      <div class="meta-item">
+        <div class="label">Modelo</div>
+        <div class="value">${d.model_name || '—'}</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Backend</div>
+        <div class="value"><span class="chip chip-blue">${d.backend || '—'}</span></div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Threshold</div>
+        <div class="value">${d.threshold}</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Creado</div>
+        <div class="value" style="font-size:.88rem">${created}</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">MLflow Run ID</div>
+        <div class="value mono" title="${d.mlflow_run_id}">${d.mlflow_run_id ? d.mlflow_run_id.slice(0,12) + '…' : '—'}</div>
+      </div>
+    `;
+  }
+
+  function renderTestMetrics(m) {
+    if (!m) return;
+    document.getElementById('test-metrics').innerHTML =
+      metricCard('Accuracy', m.accuracy) +
+      metricCard('F1 Macro', m.f1) +
+      metricCard('Precisión', m.precision) +
+      metricCard('Recall', m.recall) +
+      metricCard('ROC-AUC', m.roc_auc, true);
+  }
+
+  function renderPerClass(containerId, title, perClass, valMetrics) {
+    const el = document.getElementById(containerId);
+    if (!perClass || !Object.keys(perClass).length) {
+      el.innerHTML = '<div class="loading-state">Sin datos</div>';
+      return;
+    }
+    const vm = valMetrics || {};
+    const isVal = containerId.startsWith('val');
+
+    let rows = '';
+    for (const [cls, stats] of Object.entries(perClass)) {
+      rows += `
+        <tr>
+          <td><span class="class-pill ${cls}">${cls === 'positive' ? '😊 Positivo' : '😞 Negativo'}</span></td>
+          <td>${fmt(stats.precision)}</td>
+          <td>${fmt(stats.recall)}</td>
+          <td>${fmt(stats.f1)}</td>
+          <td>${stats.support?.toLocaleString() || '—'}</td>
+        </tr>`;
+    }
+
+    const aggRow = isVal
+      ? `<tr style="border-top:1px solid var(--border)">
+           <td style="color:var(--text-muted);font-weight:400">Macro avg</td>
+           <td>${fmt(vm.precision)}</td>
+           <td>${fmt(vm.recall)}</td>
+           <td>${fmt(vm.f1)}</td>
+           <td>—</td>
+         </tr>`
+      : '';
+
+    el.innerHTML = `
+      <h3>${title}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Clase</th>
+            <th>Precisión</th>
+            <th>Recall</th>
+            <th>F1</th>
+            <th>Support</th>
+          </tr>
+        </thead>
+        <tbody>${rows}${aggRow}</tbody>
+      </table>`;
+  }
+
+  function renderDataset(d) {
+    const el = document.getElementById('dataset-card');
+    if (!d) { el.innerHTML = '<div class="loading-state">Sin datos</div>'; return; }
+
+    const splits = d.splits || {};
+    let splitBlocks = '';
+    const splitNames = { train: 'Entrenamiento', validation: 'Validación', test: 'Test' };
+
+    for (const [key, label] of Object.entries(splitNames)) {
+      const s = splits[key] || {};
+      const pos = s.positive || 0;
+      const neg = s.negative || 0;
+      const total = pos + neg;
+      const posW = total ? (pos / total * 100).toFixed(1) : 0;
+      const negW = total ? (neg / total * 100).toFixed(1) : 0;
+      splitBlocks += `
+        <div class="split-block">
+          <div class="split-name">${label}</div>
+          <div class="split-row">
+            <span class="name" style="color:var(--positive)">Positivo</span>
+            <span class="count">${pos.toLocaleString()}</span>
+          </div>
+          <div class="bar-wrap"><div class="bar-fill pos" style="width:${posW}%"></div></div>
+          <div class="split-row" style="margin-top:8px">
+            <span class="name" style="color:var(--negative)">Negativo</span>
+            <span class="count">${neg.toLocaleString()}</span>
+          </div>
+          <div class="bar-wrap"><div class="bar-fill neg" style="width:${negW}%"></div></div>
+        </div>`;
+    }
+
+    el.innerHTML = `
+      <div class="dataset-top">
+        <div>
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:6px">Fuente</div>
+          <div class="dataset-source">${d.source || '—'}</div>
+        </div>
+        <div class="dataset-rows">
+          <div class="big">${(d.total_rows || 0).toLocaleString()}</div>
+          <div class="label">reseñas totales</div>
+        </div>
+      </div>
+      <div class="splits-grid">${splitBlocks}</div>`;
+  }
+
+  function renderComparison(experiments) {
+    const el = document.getElementById('comparison-card');
+    if (!experiments || !experiments.length) {
+      el.innerHTML = '<div class="loading-state">Sin datos</div>';
+      return;
+    }
+
+    const sorted = [...experiments].sort((a, b) => b.test_f1 - a.test_f1);
+    const maxF1 = sorted[0].test_f1;
+
+    let html = '';
+    for (const exp of sorted) {
+      const pct = ((exp.test_f1 / maxF1) * 100).toFixed(1);
+      const isWinner = exp.selected;
+      const crown = isWinner ? '<span class="crown" title="Modelo seleccionado">★</span>' : '';
+      const barCls = isWinner ? 'bar-inner winner' : 'bar-inner';
+      const f1Cls  = isWinner ? 'exp-f1 winner' : 'exp-f1';
+      const coverage = exp.embedding_coverage
+        ? `<span style="font-size:.7rem;color:var(--text-muted);margin-left:4px">(cob. ${exp.embedding_coverage})</span>`
+        : '';
+      html += `
+        <div class="exp-row">
+          <div class="exp-name">${crown}${exp.model}${coverage}</div>
+          <div class="bar-outer">
+            <div class="${barCls}" style="width:${pct}%">${isWinner ? '★ ganador' : ''}</div>
+          </div>
+          <div class="${f1Cls}">${exp.test_f1.toFixed(4)}</div>
+        </div>`;
+    }
+    el.innerHTML = html;
+  }
+
+  function renderRationale(criteria) {
+    const el = document.getElementById('rationale-list');
+    if (!criteria || !criteria.rationale || !criteria.rationale.length) {
+      el.innerHTML = '';
+      return;
+    }
+    const metricLine = `<li><strong>Métrica:</strong> ${criteria.metric}</li>`;
+    const reasons = criteria.rationale
+      .map(r => `<li>${r}</li>`)
+      .join('');
+    el.innerHTML = metricLine + reasons;
+  }
+
+  // ── Fetch model info ──────────────────────────────────────
+  async function loadModelInfo() {
+    try {
+      const r = await fetch(`${API}/model-info`, { signal: AbortSignal.timeout(10000) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+
+      renderMeta(d);
+      renderTestMetrics(d.test_metrics);
+      renderPerClass('test-per-class',  'Test — por clase',       d.test_metrics_per_class,  d.test_metrics);
+      renderPerClass('val-per-class',   'Validación — por clase', d.validation_metrics_per_class, d.validation_metrics);
+      renderDataset(d.dataset);
+      renderComparison(d.experiment_comparison);
+      renderRationale(d.selection_criteria);
+    } catch (err) {
+      const errHtml = `<div class="error-state">Error al cargar datos del modelo: ${err.message}<br>
+        Verifica que la API esté corriendo en <code>${API}</code> y que el servidor tenga CORS habilitado.</div>`;
+      ['meta-grid','test-metrics','test-per-class','val-per-class','dataset-card','comparison-card']
+        .forEach(id => { document.getElementById(id).innerHTML = errHtml; });
+      document.getElementById('rationale-list').innerHTML = '';
+    }
+  }
+
+  // ── Prediction ────────────────────────────────────────────
+  async function predict() {
+    const input  = document.getElementById('predict-input').value.trim();
+    const btn    = document.getElementById('predict-btn');
+    const results= document.getElementById('predict-results');
+
+    if (!input) return;
+
+    const texts = input.split('\n').map(t => t.trim()).filter(Boolean);
+    if (!texts.length) return;
+
+    btn.classList.add('loading');
+    btn.disabled = true;
+    results.innerHTML = '<div class="loading-state">Prediciendo…</div>';
+
+    try {
+      const r = await fetch(`${API}/predict`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texts }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${r.status}`);
+      }
+      const data = await r.json();
+
+      results.innerHTML = data.predictions.map(p => {
+        const isPos = p.predicted_label === 'positive';
+        const prob  = (p.probability * 100).toFixed(1);
+        const barWidth = isPos ? prob : (100 - prob);
+        const barCls   = isPos ? 'positive' : 'negative';
+        const label    = isPos ? '😊 Positivo' : '😞 Negativo';
+        return `
+          <div class="result-item">
+            <div class="result-text">${escHtml(p.text)}</div>
+            <div class="result-right">
+              <div class="result-label ${barCls}">${label}</div>
+              <div class="result-prob">Prob: ${prob}%</div>
+              <div class="prob-bar">
+                <div class="prob-fill ${barCls}" style="width:${p.probability * 100}%"></div>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    } catch (err) {
+      results.innerHTML = `<div class="error-state">Error: ${err.message}</div>`;
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Allow Enter+Ctrl to submit
+  document.getElementById('predict-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) predict();
+  });
+
+  // ── Boot ──────────────────────────────────────────────────
+  checkHealth();
+  loadModelInfo();
+</script>
+</body>
+</html>

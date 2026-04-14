@@ -142,8 +142,8 @@ def run_baseline(config, experiment: ExperimentConfig, split, summary_rows: list
     with tempfile.TemporaryDirectory() as temp_dir:
         analysis_dir = Path(temp_dir) / "analysis"
         analysis_dir.mkdir(parents=True, exist_ok=True)
-        _save_json(split.dataset_metadata, analysis_dir / "dataset_metadata.json")
-        _save_json(asdict(experiment), analysis_dir / "experiment_config.json")
+        save_json(split.dataset_metadata, analysis_dir / "dataset_metadata.json")
+        save_json(asdict(experiment), analysis_dir / "experiment_config.json")
         save_evaluation_artifacts(split.y_val, val_probabilities, val_predictions, analysis_dir, prefix="validation")
         save_evaluation_artifacts(split.y_test, test_probabilities, test_predictions, analysis_dir, prefix="test")
         _save_baseline_coefficients(pipeline, analysis_dir / "top_tfidf_coefficients.csv")
@@ -231,18 +231,18 @@ def run_neural(config, experiment: ExperimentConfig, split, summary_rows: list[d
     with tempfile.TemporaryDirectory() as temp_dir:
         analysis_dir = Path(temp_dir) / "analysis"
         analysis_dir.mkdir(parents=True, exist_ok=True)
-        _save_json(split.dataset_metadata, analysis_dir / "dataset_metadata.json")
-        _save_json(asdict(experiment), analysis_dir / "experiment_config.json")
-        _save_json(neural_artifacts.embedding_info, analysis_dir / "embedding_info.json")
+        save_json(split.dataset_metadata, analysis_dir / "dataset_metadata.json")
+        save_json(asdict(experiment), analysis_dir / "experiment_config.json")
+        save_json(neural_artifacts.embedding_info, analysis_dir / "embedding_info.json")
         if embedding_artifacts:
-            _save_json(embedding_artifacts, analysis_dir / "embedding_coverage.json")
+            save_json(embedding_artifacts, analysis_dir / "embedding_coverage.json")
         _save_text_lines(vocabulary, analysis_dir / "vocabulary.txt")
         save_evaluation_artifacts(split.y_val, val_probabilities, val_predictions, analysis_dir, prefix="validation")
         save_evaluation_artifacts(split.y_test, test_probabilities, test_predictions, analysis_dir, prefix="test")
         history_plot = save_history_plot(history, analysis_dir)
         save_model_summary(neural_artifacts.model, analysis_dir)
         if history_plot is None:
-            _save_json({"warning": "No se generó historial de entrenamiento."}, analysis_dir / "history_warning.json")
+            save_json({"warning": "No se generó historial de entrenamiento."}, analysis_dir / "history_warning.json")
         mlflow.log_artifacts(str(analysis_dir), artifact_path="analysis")
 
     model_metadata = {

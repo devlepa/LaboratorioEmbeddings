@@ -10,6 +10,8 @@ from typing import Any
 import mlflow
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 # Importable tanto en desarrollo (src/) como desde artifact MLflow (code/src/)
@@ -157,6 +159,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="IMDB Spanish Sentiment API", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def dashboard() -> HTMLResponse:
+    """Sirve el dashboard HTML del modelo."""
+    html_path = Path(__file__).parent / "dashboard.html"
+    return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
 
 
 @app.get("/health")
